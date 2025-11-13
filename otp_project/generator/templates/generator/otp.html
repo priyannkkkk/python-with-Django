@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OTP Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #6dd5ed, #2193b0);
+            text-align: center;
+            padding-top: 40px;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 30px;
+            width: 400px;
+            margin: auto;
+            border-radius: 15px;
+        }
+        input, button {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            margin-top: 10px;
+            width: 70%;
+        }
+        button {
+            background: black;
+            color: white;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: gray;
+            cursor: not-allowed;
+        }
+        h2 {
+            margin-top: 25px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Generate New OTP -->
+    <form method="GET" action="">
+        <button type="submit">🔄 Generate New OTP</button>
+    </form>
+
+    <hr style="margin:25px 0; opacity:0.4;">
+
+    <!-- SEND EMAIL SECTION -->
+    <h2>Send OTP to Email</h2>
+    <form method="POST" id="emailForm">
+        {% csrf_token %}
+        <input 
+            type="email" 
+            name="email" 
+            placeholder="Enter email" 
+            value="{{ request.POST.email|default:'' }}" 
+            required>
+        <button type="submit">📩 Send OTP</button>
+    </form>
+
+    {% if sent %}
+        <p style="color:lightgreen;">OTP Sent Successfully!</p>
+    {% endif %}
+
+    <hr style="margin:25px 0; opacity:0.4;">
+
+    <!-- VERIFY OTP SECTION -->
+    <h2>Verify OTP</h2>
+    <input type="text" id="entered_otp" placeholder="Enter OTP">
+
+    <button id="verifyBtn" onclick="verifyOTP()">✔ Verify</button>
+
+    <p id="verify_result" style="font-size:18px;"></p>
+
+    <p id="timer" style="font-weight:bold;"></p>
+
+</div>
+
+
+
+<script>
+let timeLeft = 60;
+let stopTimer = true;
+let timerInterval = null;
+
+// -----------------------------------------------------
+// START TIMER FUNCTION
+// -----------------------------------------------------
+function startTimer() {
+    stopTimer = false;
+    timeLeft = 60;
+
+    if (timerInterval) clearInterval(timerInterval);
+
+    timerInterval = setInterval(() => {
+
+        if (stopTimer) return;
+
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+
+            document.getElementById("timer").innerHTML =
+                "⏳ OTP expired — Generate New OTP";
+
+            let btn = document.getElementById("verifyBtn");
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+
+            stopTimer = true;
+            return;
+        }
+
+        document.getElementById("timer").innerHTML =
+            "Time left: " + timeLeft + " sec";
+
+        timeLeft--;
+
+    }, 1000);
+}
+
+
+
+
+
+
+
+// ------------------------------------------------------
+// AJAX VERIFY OTP
+// ------------------------------------------------------
+function verifyOTP() {
+    const otp = document.getElementById('entered_otp').value;
+
+    fetch("/verify/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}",
+        },
+        body: JSON.stringify({ entered_otp: otp })
+    })
+    .then(response => response.json())
+    .then(data => {
+
+        document.getElementById("verify_result").innerHTML = data.message;
+
+        // ----------------------------------------------
+        // STOP TIMER WHEN OTP IS CORRECT
+        // ----------------------------------------------
+        if (data.message.includes("Correct OTP")) {
+
+            stopTimer = true;
+            clearInterval(timerInterval);
+
+            let btn = document.getElementById("verifyBtn");
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+
+            document.getElementById("timer").innerHTML =
+                "🎉 OTP Verified — Timer Stopped";
+        }
+
+        // ----------------------------------------------
+        // STOP TIMER ON 3 FAILED ATTEMPTS
+        // ----------------------------------------------
+       if (data.message.includes("3 failed attempts")) {
+
+            stopTimer = true;
+            clearInterval(timerInterval);
+
+            let btn = document.getElementById("verifyBtn");
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+
+            document.getElementById("timer").innerHTML = "";  // remove duplicate timer message
+
+            document.getElementById("verify_result").innerHTML =
+                "❌ 3 failed attempts — Generate New OTP";  // show only once
+        }
+
+    });
+}
+</script>
+
+<!-- // ------------------------------------------------------
+// START TIMER AFTER OTP SENT (AFTER RELOAD)
+// ------------------------------------------------------ -->
+{% if sent %}
+<script>
+    startTimer();
+</script>
+{% endif %}
+
+</body>
+</html>
