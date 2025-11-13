@@ -69,8 +69,3 @@ After 3 failed attempts:
 ### ✔ Django session storage  
 ### ✔ Timer logic  
 ### ✔ UI state changes (enabled/disabled buttons)
-
----
-
-## 📂 Project Structure
-
